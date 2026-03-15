@@ -1,0 +1,7 @@
+{
+  "name": "RFID Medication Reminder",
+  "render_readme": true,
+  "homeassistant": "2024.1.0",
+  "content_in_root": false,
+  "filename": "rfid_medication_reminder.zip"
+}
