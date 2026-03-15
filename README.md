@@ -1,4 +1,4 @@
-**# RFID Medication Reminder for Home Assistant
+## RFID Medication Reminder for Home Assistant
 
 A powerful, customizable medication reminder system that supports **multiple reminders** with different RFID tags, each with its own interval, message, media players, and phone notifications. Alerts loop until the correct RFID tag is scanned.
 
