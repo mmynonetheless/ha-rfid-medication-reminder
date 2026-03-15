@@ -114,7 +114,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def handle_tag_scanned(event):
         tag_id = event.data.get("tag_id")
         if tag_id:
-            hass.data[DOMAIN][entry.entry_id]["known_tags"].add(tag_id)
+            await _update_known_tags(hass, entry, tag_id)
             await _process_rfid_scan(hass, entry, tag_id)
 
     hass.bus.async_listen("tag_scanned", handle_tag_scanned)
@@ -138,6 +138,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 def get_known_tags(hass: HomeAssistant, entry_id: str) -> set:
     """Return set of known RFID tags."""
     return hass.data[DOMAIN][entry_id].get("known_tags", set())
+
+async def _update_known_tags(hass: HomeAssistant, entry: ConfigEntry, tag: str):
+    """Add a tag to the known_tags set if not already present."""
+    if tag:
+        hass.data[DOMAIN][entry.entry_id]["known_tags"].add(tag)
 
 async def _setup_condition_listeners(hass: HomeAssistant, entry: ConfigEntry):
     """Set up state change listeners for condition entities."""
@@ -222,8 +227,7 @@ async def _check_single_condition(hass: HomeAssistant, condition: dict, now: dat
             if start <= end:
                 if not (start <= cur <= end):
                     return False
-            else:
-                # overnight
+            else:  # overnight
                 if not (cur >= start or cur <= end):
                     return False
         except ValueError:
