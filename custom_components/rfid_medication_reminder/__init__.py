@@ -1,6 +1,7 @@
 """Init for RFID Medication Reminder integration."""
 import logging
 from datetime import datetime, timedelta, time
+from collections import defaultdict
 
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.config_entries import ConfigEntry
@@ -89,6 +90,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "reminders": [],
         "unsub_timer": None,
         "condition_listeners": {},
+        "known_tags": set(),
     }
 
     # Create device registry entry
@@ -126,6 +128,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         """Handle RFID tag scanned event."""
         tag_id = event.data.get("tag_id")
         if tag_id:
+            hass.data[DOMAIN][entry.entry_id]["known_tags"].add(tag_id)
             await _process_rfid_scan(hass, entry, tag_id)
 
     hass.bus.async_listen("tag_scanned", handle_tag_scanned)
@@ -134,6 +137,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True
+
+def get_known_tags(hass, entry_id):
+    """Return set of known RFID tags."""
+    return hass.data[DOMAIN][entry_id].get("known_tags", set())
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
