@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "RFID Medication Reminder",
-        "description": "Set up the RFID Medication Reminder integration"
+        "description": "Set up the RFID Medication Reminder integration with conditional reminders"
       }
     },
     "abort": {
@@ -15,6 +15,69 @@
       "init": {
         "title": "RFID Medication Reminder Options",
         "description": "Configure your RFID reminder settings"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "rfid_reminder_status": {
+        "name": "RFID Reminder Status",
+        "state": {
+          "0": "No active reminders",
+          "1": "1 active reminder",
+          "else": "{count} active reminders"
+        }
+      },
+      "rfid_reminder_list": {
+        "name": "RFID Reminder List"
+      },
+      "rfid_reminder_conditions": {
+        "name": "{reminder_name} Conditions Met"
+      }
+    },
+    "binary_sensor": {
+      "reminder_conditions_met": {
+        "name": "{reminder_name} Conditions Met",
+        "state": {
+          "on": "Conditions met",
+          "off": "Conditions not met"
+        }
+      }
+    },
+    "button": {
+      "add_reminder": {
+        "name": "Add New Reminder"
+      },
+      "clear_all_reminders": {
+        "name": "Clear All Active Reminders"
+      }
+    },
+    "select": {
+      "reminder_action": {
+        "name": "{reminder_name} Action",
+        "state": {
+          "edit": "Edit",
+          "delete": "Delete",
+          "test": "Test",
+          "enable_disable": "Enable/Disable",
+          "add_condition": "Add Condition"
+        }
+      }
+    },
+    "number": {
+      "reminder_volume": {
+        "name": "{reminder_name} Volume"
+      },
+      "reminder_interval": {
+        "name": "{reminder_name} Interval"
+      }
+    },
+    "text": {
+      "reminder_message": {
+        "name": "{reminder_name} Message"
+      },
+      "reminder_rfid": {
+        "name": "{reminder_name} RFID Tag"
       }
     }
   },
@@ -52,6 +115,36 @@
           "description": "Message shown in notifications"
         }
       }
+    },
+    "add_condition": {
+      "name": "Add Condition",
+      "description": "Add a condition to an existing reminder",
+      "fields": {
+        "reminder_name": {
+          "name": "Reminder Name",
+          "description": "Name of the reminder to add condition to"
+        },
+        "condition_type": {
+          "name": "Condition Type",
+          "description": "How multiple conditions should be evaluated"
+        },
+        "time_start": {
+          "name": "Time Start",
+          "description": "Start time for time window"
+        },
+        "time_end": {
+          "name": "Time End",
+          "description": "End time for time window"
+        },
+        "weekdays": {
+          "name": "Weekdays",
+          "description": "Days of the week when reminder can trigger"
+        }
+      }
+    },
+    "clear_reminder": {
+      "name": "Clear Reminder",
+      "description": "Clear a reminder by RFID tag"
     }
   }
 }
