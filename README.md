@@ -1,6 +1,6 @@
-# Multi-RFID Reminder System for Home Assistant
+**# RFID Medication Reminder for Home Assistant
 
-A powerful, customizable reminder system that supports **multiple reminders** with different RFID tags, each with its own interval, message, media players, and phone notifications. Alerts loop until the correct RFID tag is scanned.
+A powerful, customizable medication reminder system that supports **multiple reminders** with different RFID tags, each with its own interval, message, media players, and phone notifications. Alerts loop until the correct RFID tag is scanned.
 
 ## Features
 
@@ -10,30 +10,34 @@ A powerful, customizable reminder system that supports **multiple reminders** wi
 - ✅ Media player alerts (looping sound)
 - ✅ Phone notifications (Find My style – critical alerts, vibration, LED, action buttons)
 - ✅ Snooze (10 minutes) from notification
-- ✅ JSON‑based configuration stored in an `input_text` helper
+- ✅ JSON-based configuration storage
 - ✅ Easy management via service calls
-
----
 
 ## Installation
 
-### Option 1: Manual Installation (Packages)
+### HACS Installation (Recommended)
 
-1. Copy `multi_rfid_reminder.yaml` into your Home Assistant `packages/` directory.  
-   (Create the folder if it doesn't exist.)
-2. Ensure your `configuration.yaml` includes:
-   ```yaml
-   homeassistant:
-     packages: !include_dir_named packages
-   ```
+1. Open HACS in your Home Assistant sidebar
+2. Click on Integrations
+3. Click the three dots in the top right corner (⋮)
+4. Select "Custom repositories"
+5. Add this repository URL with category "Integration":
+  https://github.com/mmynonetheless/ha-rfid-medication-reminder/
 
-   ## Option 2: HACS (as a custom repository)
+6. Click "ADD"
+7. Search for "RFID Medication Reminder" in HACS
+8. Click "Download"
+9. Restart Home Assistant
 
-1. Add this repository to HACS as a custom repository (category: "Integration" or "Package")
-2. Download the files
-3. Follow the manual installation steps above
+### Manual Installation
 
----
+1. Download the `rfid_medication_reminder` folder
+2. Copy it to your `custom_components` directory
+3. Restart Home Assistant
+
+## Configuration
+
+After installation, go to **Settings → Devices & Services → Add Integration** and search for "RFID Medication Reminder".
 
 ## Prerequisites
 
@@ -47,6 +51,8 @@ Before using this system, you need:
 | Notification Targets | Device IDs from Settings → Devices & Services → Mobile App |
 
 ---
+
+## Usage
 
 ## Adding Your First Reminder
 
@@ -63,70 +69,11 @@ data:
   notification_targets: '["device_tracker.my_phone"]'
   custom_message: "Time for your medication!"
 ```
-## Service Details
-
-| Field | Required | Default | Description |
-|-------|----------|---------|-------------|
-| reminder_name | Yes | - | Unique name for the reminder |
-| rfid_tag | Yes | - | The RFID tag ID that clears this reminder |
-| interval_hours | Yes | - | Hours between triggers (0.5 to 24) |
-| volume | No | 0.7 | Alert volume (0.1 to 1.0) |
-| media_players | No | [] | JSON array of media_player entity IDs |
-| notification_targets | No | [] | JSON array of mobile_app device IDs |
-| custom_message | Yes | - | Message shown in notifications |
 
 ---
 
-## How It Works
-
-1. **Monitor runs every minute** checking all reminders
-2. **When interval elapsed** → reminder activates
-3. **Alerts loop until cleared**:
-   - Media players play sound every 10 seconds
-   - Phones receive critical notifications every 30 seconds
-4. **Scan RFID tag** → stops all alerts for that tag
-5. **Snooze from notification** → pauses for 10 minutes
-
 ---
 
-## Notification Features (Find My Style)
-
-| Feature | Implementation |
-|---------|----------------|
-| Critical Alerts | Bypasses silent mode |
-| Persistent Sound | Loops until cleared |
-| LED Indicator | Red LED on supported devices |
-| Vibration Pattern | 1s on, 1s off, 1s on |
-| Action Buttons | Snooze (10min) and Clear |
-| Dedicated Channel | Uses "alarm_stream" channel |
-| High Priority | Bypasses Do Not Disturb |
-
----
-
-## Viewing Active Reminders
-
-Check current configurations in **Developer Tools → States**:
- ```
-Search for: input_text.reminder_configs
- ```
-
-The value shows a JSON array of all reminders with their current status:
-- `active: true` = currently alerting
-- `enabled: true` = active in the system
-- `snooze_until` = timestamp if snoozed
-
----
-
-## Troubleshooting
-
-| Problem | Solution |
-|---------|----------|
-| No sound on media players | Verify `alert.mp3` exists in `/config/www/media/` and test with `media_player.play_media` service |
-| Phone notifications not working | Ensure mobile app is installed and use correct device IDs from Settings → Devices & Services → Mobile App |
-| RFID tag not clearing | Check tag ID matches exactly and monitor logs for errors |
-| Reminder not triggering | Verify `enabled: true` in config and check automation logs |
-
----
 
 ## Example Configurations
 
@@ -166,20 +113,86 @@ custom_message: "Time to water the plants 🌱"
 ```
 
 ---
+## Service Details
 
-## File Structure
+| Field | Required | Default | Description |
+|-------|----------|---------|-------------|
+| reminder_name | Yes | - | Unique name for the reminder |
+| rfid_tag | Yes | - | The RFID tag ID that clears this reminder |
+| interval_hours | Yes | - | Hours between triggers (0.5 to 24) |
+| volume | No | 0.7 | Alert volume (0.1 to 1.0) |
+| media_players | No | [] | JSON array of media_player entity IDs |
+| notification_targets | No | [] | JSON array of mobile_app device IDs |
+| custom_message | Yes | - | Message shown in notifications |
 
-```
-text
-/config/
-├── packages/
-│   └── multi_rfid_reminder.yaml
-├── www/
-│   └── media/
-│       └── alert.mp3
-└── configuration.yaml
-```
 ---
+
+## How It Works
+
+1. **Monitor runs every minute** checking all reminders
+2. **When interval elapsed** → reminder activates
+3. **Alerts loop until cleared**:
+   - Media players play sound every 10 seconds
+   - Phones receive critical notifications every 30 seconds
+4. **Scan RFID tag** → stops all alerts for that tag
+5. **Snooze from notification** → pauses for 10 minutes
+
+---
+
+## Notification Features 
+
+| Feature | Implementation |
+|---------|----------------|
+| Critical Alerts | Bypasses silent mode |
+| Persistent Sound | Loops until cleared |
+| LED Indicator | Red LED on supported devices |
+| Vibration Pattern | 1s on, 1s off, 1s on |
+| Action Buttons | Snooze (10min) and Clear |
+| Dedicated Channel | Uses "alarm_stream" channel |
+| High Priority | Bypasses Do Not Disturb |
+
+---
+
+## Viewing Active Reminders
+
+Check current configurations in **Developer Tools → States**:
+ ```
+Search for: input_text.reminder_configs
+ ```
+
+The value shows a JSON array of all reminders with their current status:
+- `active: true` = currently alerting
+- `enabled: true` = active in the system
+- `snooze_until` = timestamp if snoozed
+
+---
+
+## Events
+
+The integration fires these events:
+
+| Event | Description | Data |
+|-------|-------------|------|
+| `rfid_medication_reminder_triggered` | Reminder triggered | `reminder_name`, `rfid_tag`, `custom_message` |
+| `rfid_medication_reminder_cleared` | Reminder cleared | `rfid_tag`, `cleared_reminders` |
+| `rfid_medication_reminder_snoozed` | Reminder snoozed | `reminder_name`, `snooze_minutes` |
+| `rfid_medication_reminder_rfid_scanned` | RFID tag scanned | `rfid_tag`, `cleared_reminders` |
+
+---
+
+## Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| No sound on media players | Verify `alert.mp3` exists in `/config/www/media/` |
+| Phone notifications not working | Use correct device IDs from **Settings → Devices & Services → Mobile App** |
+| RFID tag not clearing | Check that the tag ID matches exactly |
+| Reminder not triggering | Verify that the reminder is enabled |
+
+
+
+---
+
 
 ## Credits
 
