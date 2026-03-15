@@ -1,0 +1,164 @@
+add_reminder:
+  name: Add Reminder
+  description: Add a new medication reminder
+  fields:
+    reminder_name:
+      name: Reminder Name
+      description: Unique name for the reminder
+      required: true
+      selector:
+        text:
+    rfid_tag:
+      name: RFID Tag
+      description: The RFID tag ID that clears this reminder
+      required: true
+      selector:
+        text:
+    interval_hours:
+      name: Interval Hours
+      description: Hours between triggers (0.5 to 24)
+      required: true
+      selector:
+        number:
+          min: 0.5
+          max: 24
+          step: 0.5
+          mode: slider
+    volume:
+      name: Volume
+      description: Alert volume (0.1 to 1.0)
+      required: false
+      default: 0.7
+      selector:
+        number:
+          min: 0.1
+          max: 1.0
+          step: 0.1
+          mode: slider
+    media_players:
+      name: Media Players
+      description: List of media_player entity IDs
+      required: false
+      example: '["media_player.living_room"]'
+      selector:
+        object:
+    notification_targets:
+      name: Notification Targets
+      description: List of mobile_app device IDs
+      required: false
+      example: '["device_tracker.my_phone"]'
+      selector:
+        object:
+    custom_message:
+      name: Custom Message
+      description: Message shown in notifications
+      required: true
+      selector:
+        text:
+          multiline: true
+
+remove_reminder:
+  name: Remove Reminder
+  description: Remove an existing reminder
+  fields:
+    reminder_name:
+      name: Reminder Name
+      description: Name of the reminder to remove
+      required: true
+      selector:
+        text:
+
+update_reminder:
+  name: Update Reminder
+  description: Update an existing reminder
+  fields:
+    reminder_name:
+      name: Reminder Name
+      description: Name of the reminder to update
+      required: true
+      selector:
+        text:
+    rfid_tag:
+      name: RFID Tag
+      description: The RFID tag ID that clears this reminder
+      required: false
+      selector:
+        text:
+    interval_hours:
+      name: Interval Hours
+      description: Hours between triggers (0.5 to 24)
+      required: false
+      selector:
+        number:
+          min: 0.5
+          max: 24
+          step: 0.5
+          mode: slider
+    volume:
+      name: Volume
+      description: Alert volume (0.1 to 1.0)
+      required: false
+      selector:
+        number:
+          min: 0.1
+          max: 1.0
+          step: 0.1
+          mode: slider
+    media_players:
+      name: Media Players
+      description: List of media_player entity IDs
+      required: false
+      selector:
+        object:
+    notification_targets:
+      name: Notification Targets
+      description: List of mobile_app device IDs
+      required: false
+      selector:
+        object:
+    custom_message:
+      name: Custom Message
+      description: Message shown in notifications
+      required: false
+      selector:
+        text:
+          multiline: true
+    enabled:
+      name: Enabled
+      description: Enable or disable this reminder
+      required: false
+      selector:
+        boolean:
+
+clear_reminder:
+  name: Clear Reminder
+  description: Clear a reminder by scanning RFID tag
+  fields:
+    rfid_tag:
+      name: RFID Tag
+      description: The RFID tag ID that was scanned
+      required: true
+      selector:
+        text:
+
+snooze_reminder:
+  name: Snooze Reminder
+  description: Snooze an active reminder
+  fields:
+    reminder_name:
+      name: Reminder Name
+      description: Name of the reminder to snooze
+      required: true
+      selector:
+        text:
+    minutes:
+      name: Minutes
+      description: Minutes to snooze (1-60)
+      required: false
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 60
+          step: 1
+          mode: slider
