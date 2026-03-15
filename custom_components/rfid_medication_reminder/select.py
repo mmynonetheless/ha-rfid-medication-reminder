@@ -16,22 +16,15 @@ async def async_setup_entry(
     """Set up select entities."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     selects = []
-
-    # Create a select for each reminder to choose actions (no snooze)
-    reminders = coordinator["reminders"]
-    for i, reminder in enumerate(reminders):
+    for i, reminder in enumerate(coordinator["reminders"]):
         selects.append(ReminderActionSelect(coordinator, entry, i, reminder))
-
-    # Create a select to pick a tag to clear all reminders for that tag
     selects.append(RFIDTagClearSelect(coordinator, entry))
-
     async_add_entities(selects, True)
 
 class ReminderActionSelect(SelectEntity):
     """Select for reminder actions (no snooze)."""
 
     def __init__(self, coordinator, entry, index, reminder):
-        """Initialize the select."""
         self._coordinator = coordinator
         self._entry = entry
         self._index = index
@@ -48,36 +41,23 @@ class ReminderActionSelect(SelectEntity):
         )
 
     async def async_select_option(self, option: str) -> None:
-        """Handle option selection."""
-        reminder_name = self._reminder[CONF_REMINDER_NAME]
-        
+        name = self._reminder[CONF_REMINDER_NAME]
         if option == "Edit":
-            self.hass.bus.async_fire(f"{DOMAIN}_show_edit_form", {
-                "reminder_name": reminder_name
-            })
+            self.hass.bus.async_fire(f"{DOMAIN}_show_edit_form", {"reminder_name": name})
         elif option == "Delete":
-            self.hass.bus.async_fire(f"{DOMAIN}_confirm_delete", {
-                "reminder_name": reminder_name
-            })
+            self.hass.bus.async_fire(f"{DOMAIN}_confirm_delete", {"reminder_name": name})
         elif option == "Test":
-            # Force trigger the reminder regardless of conditions
-            self.hass.bus.async_fire(f"{DOMAIN}_test_reminder", {
-                "reminder_name": reminder_name
-            })
+            self.hass.bus.async_fire(f"{DOMAIN}_test_reminder", {"reminder_name": name})
         elif option == "Enable/Disable":
-            # Toggle enabled state
             reminders = self._coordinator["reminders"]
             for r in reminders:
-                if r[CONF_REMINDER_NAME] == reminder_name:
+                if r[CONF_REMINDER_NAME] == name:
                     r[CONF_ENABLED] = not r.get(CONF_ENABLED, True)
                     break
             await self._coordinator["store"].async_save({"reminders": reminders})
             self.hass.bus.async_fire(f"{DOMAIN}_reminders_updated", {})
         elif option == "Add Condition":
-            self.hass.bus.async_fire(f"{DOMAIN}_show_condition_form", {
-                "reminder_name": reminder_name
-            })
-
+            self.hass.bus.async_fire(f"{DOMAIN}_show_condition_form", {"reminder_name": name})
         self._attr_current_option = None
         self.async_write_ha_state()
 
@@ -85,7 +65,6 @@ class RFIDTagClearSelect(SelectEntity):
     """Select to pick a tag to clear all reminders for that tag."""
 
     def __init__(self, coordinator, entry):
-        """Initialize the select."""
         self._coordinator = coordinator
         self._entry = entry
         self._attr_unique_id = f"{DOMAIN}_{entry.entry_id}_tag_clear"
@@ -100,14 +79,12 @@ class RFIDTagClearSelect(SelectEntity):
         )
 
     async def async_select_option(self, option: str) -> None:
-        """Clear reminders for selected tag."""
         await _process_rfid_scan(self.hass, self._entry, option)
         self._attr_current_option = None
         self.async_write_ha_state()
 
     @callback
     def _handle_coordinator_update(self) -> None:
-        """Update options when known tags change."""
         tags = self._coordinator.get("known_tags", set())
         self._attr_options = sorted(tags)
         self.async_write_ha_state()
