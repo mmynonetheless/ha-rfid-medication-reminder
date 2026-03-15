@@ -1,0 +1,57 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "RFID Medication Reminder",
+        "description": "Set up the RFID Medication Reminder integration"
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Only one instance of this integration is allowed."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "RFID Medication Reminder Options",
+        "description": "Configure your RFID reminder settings"
+      }
+    }
+  },
+  "services": {
+    "add_reminder": {
+      "name": "Add Reminder",
+      "description": "Add a new medication reminder",
+      "fields": {
+        "reminder_name": {
+          "name": "Reminder Name",
+          "description": "Unique name for the reminder"
+        },
+        "rfid_tag": {
+          "name": "RFID Tag",
+          "description": "The RFID tag ID that clears this reminder"
+        },
+        "interval_hours": {
+          "name": "Interval Hours",
+          "description": "Hours between triggers (0.5 to 24)"
+        },
+        "volume": {
+          "name": "Volume",
+          "description": "Alert volume (0.1 to 1.0)"
+        },
+        "media_players": {
+          "name": "Media Players",
+          "description": "List of media_player entity IDs"
+        },
+        "notification_targets": {
+          "name": "Notification Targets",
+          "description": "List of mobile_app device IDs"
+        },
+        "custom_message": {
+          "name": "Custom Message",
+          "description": "Message shown in notifications"
+        }
+      }
+    }
+  }
+}
