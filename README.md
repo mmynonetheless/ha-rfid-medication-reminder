@@ -154,6 +154,7 @@ custom_message: "Drink water! 💧"
 ```
 
 ### Chore Reminder (Daily)
+```
 yaml
 reminder_name: "Water Plants"
 rfid_tag: "5555555555"
