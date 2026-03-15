@@ -72,8 +72,6 @@ data:
 
 ---
 
----
-
 
 ## Example Configurations
 
