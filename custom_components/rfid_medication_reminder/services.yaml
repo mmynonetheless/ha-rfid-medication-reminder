@@ -57,108 +57,103 @@ add_reminder:
         text:
           multiline: true
 
-remove_reminder:
-  name: Remove Reminder
-  description: Remove an existing reminder
+add_condition:
+  name: Add Condition
+  description: Add a condition to an existing reminder
   fields:
     reminder_name:
       name: Reminder Name
-      description: Name of the reminder to remove
+      description: Name of the reminder to add condition to
       required: true
       selector:
         text:
+    condition_type:
+      name: Condition Type
+      description: How multiple conditions should be evaluated
+      required: false
+      default: "all"
+      selector:
+        select:
+          options:
+            - "all"
+            - "any"
+            - "none"
+    time_start:
+      name: Time Start
+      description: Start time for time window (HH:MM format)
+      required: false
+      example: "08:00"
+      selector:
+        time:
+    time_end:
+      name: Time End
+      description: End time for time window (HH:MM format)
+      required: false
+      example: "20:00"
+      selector:
+        time:
+    weekdays:
+      name: Weekdays
+      description: Days of the week when reminder can trigger
+      required: false
+      selector:
+        select:
+          options:
+            - "monday"
+            - "tuesday"
+            - "wednesday"
+            - "thursday"
+            - "friday"
+            - "saturday"
+            - "sunday"
+          multiple: true
+    days_of_month:
+      name: Days of Month
+      description: Days of month when reminder can trigger (1-31)
+      required: false
+      selector:
+        object:
+    months:
+      name: Months
+      description: Months when reminder can trigger (1-12)
+      required: false
+      selector:
+        object:
+    entity_conditions:
+      name: Entity Conditions
+      description: List of entity state conditions
+      required: false
+      selector:
+        object:
 
-update_reminder:
-  name: Update Reminder
-  description: Update an existing reminder
+remove_condition:
+  name: Remove Condition
+  description: Remove a condition from a reminder
   fields:
     reminder_name:
       name: Reminder Name
-      description: Name of the reminder to update
+      description: Name of the reminder
       required: true
       selector:
         text:
-    rfid_tag:
-      name: RFID Tag
-      description: The RFID tag ID that clears this reminder
-      required: false
-      selector:
-        text:
-    interval_hours:
-      name: Interval Hours
-      description: Hours between triggers (0.5 to 24)
-      required: false
+    condition_index:
+      name: Condition Index
+      description: Index of condition to remove (0-based)
+      required: true
       selector:
         number:
-          min: 0.5
-          max: 24
-          step: 0.5
-          mode: slider
-    volume:
-      name: Volume
-      description: Alert volume (0.1 to 1.0)
-      required: false
-      selector:
-        number:
-          min: 0.1
-          max: 1.0
-          step: 0.1
-          mode: slider
-    media_players:
-      name: Media Players
-      description: List of media_player entity IDs
-      required: false
-      selector:
-        object:
-    notification_targets:
-      name: Notification Targets
-      description: List of mobile_app device IDs
-      required: false
-      selector:
-        object:
-    custom_message:
-      name: Custom Message
-      description: Message shown in notifications
-      required: false
-      selector:
-        text:
-          multiline: true
-    enabled:
-      name: Enabled
-      description: Enable or disable this reminder
-      required: false
-      selector:
-        boolean:
+          min: 0
+          max: 20
+          step: 1
+          mode: box
 
 clear_reminder:
   name: Clear Reminder
-  description: Clear a reminder by scanning RFID tag
+  description: Clear a reminder by RFID tag
   fields:
     rfid_tag:
       name: RFID Tag
-      description: The RFID tag ID that was scanned
+      description: The RFID tag that was scanned
       required: true
       selector:
         text:
-
-snooze_reminder:
-  name: Snooze Reminder
-  description: Snooze an active reminder
-  fields:
-    reminder_name:
-      name: Reminder Name
-      description: Name of the reminder to snooze
-      required: true
-      selector:
-        text:
-    minutes:
-      name: Minutes
-      description: Minutes to snooze (1-60)
-      required: false
-      default: 10
-      selector:
-        number:
-          min: 1
-          max: 60
-          step: 1
-          mode: slider
