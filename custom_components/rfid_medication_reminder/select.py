@@ -16,10 +16,19 @@ async def async_setup_entry(
     """Set up select entities."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     selects = []
+
+    # Action selects per reminder
     for i, reminder in enumerate(coordinator["reminders"]):
         selects.append(ReminderActionSelect(coordinator, entry, i, reminder))
+
+    # Known tags select (global)
+    selects.append(KnownTagsSelect(coordinator, entry))
+
+    # Tag clear select (global)
     selects.append(RFIDTagClearSelect(coordinator, entry))
+
     async_add_entities(selects, True)
+
 
 class ReminderActionSelect(SelectEntity):
     """Select for reminder actions (no snooze)."""
@@ -60,6 +69,35 @@ class ReminderActionSelect(SelectEntity):
             self.hass.bus.async_fire(f"{DOMAIN}_show_condition_form", {"reminder_name": name})
         self._attr_current_option = None
         self.async_write_ha_state()
+
+
+class KnownTagsSelect(SelectEntity):
+    """Select that lists all known RFID tags (for easy copying)."""
+
+    def __init__(self, coordinator, entry):
+        self._coordinator = coordinator
+        self._entry = entry
+        self._attr_unique_id = f"{DOMAIN}_{entry.entry_id}_known_tags"
+        self._attr_name = "Known RFID Tags"
+        self._attr_icon = "mdi:tag-multiple"
+        self._attr_options = []
+        self._attr_current_option = None
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name="RFID Medication Reminder",
+            manufacturer="Community",
+        )
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Update options when known tags change."""
+        tags = self._coordinator.get("known_tags", set())
+        self._attr_options = sorted(tags)
+        # If current selection is not in new options, clear it
+        if self._attr_current_option not in self._attr_options:
+            self._attr_current_option = None
+        self.async_write_ha_state()
+
 
 class RFIDTagClearSelect(SelectEntity):
     """Select to pick a tag to clear all reminders for that tag."""
