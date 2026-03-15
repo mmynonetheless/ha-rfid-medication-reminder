@@ -1,11 +1,12 @@
 """Select platform for RFID Medication Reminder."""
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.entity import DeviceInfo
 
 from .const import DOMAIN, CONF_REMINDER_NAME, CONF_ENABLED
+from . import _process_rfid_scan, get_known_tags
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -20,6 +21,9 @@ async def async_setup_entry(
     reminders = coordinator["reminders"]
     for i, reminder in enumerate(reminders):
         selects.append(ReminderActionSelect(coordinator, entry, i, reminder))
+
+    # Create a select to pick a tag to clear all reminders for that tag
+    selects.append(RFIDTagClearSelect(coordinator, entry))
 
     async_add_entities(selects, True)
 
@@ -75,4 +79,35 @@ class ReminderActionSelect(SelectEntity):
             })
 
         self._attr_current_option = None
+        self.async_write_ha_state()
+
+class RFIDTagClearSelect(SelectEntity):
+    """Select to pick a tag to clear all reminders for that tag."""
+
+    def __init__(self, coordinator, entry):
+        """Initialize the select."""
+        self._coordinator = coordinator
+        self._entry = entry
+        self._attr_unique_id = f"{DOMAIN}_{entry.entry_id}_tag_clear"
+        self._attr_name = "Clear by RFID Tag"
+        self._attr_icon = "mdi:rfid"
+        self._attr_options = []
+        self._attr_current_option = None
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name="RFID Medication Reminder",
+            manufacturer="Community",
+        )
+
+    async def async_select_option(self, option: str) -> None:
+        """Clear reminders for selected tag."""
+        await _process_rfid_scan(self.hass, self._entry, option)
+        self._attr_current_option = None
+        self.async_write_ha_state()
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Update options when known tags change."""
+        tags = self._coordinator.get("known_tags", set())
+        self._attr_options = sorted(tags)
         self.async_write_ha_state()
