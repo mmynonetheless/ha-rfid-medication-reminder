@@ -1,18 +1,30 @@
 """Init for RFID Medication Reminder integration."""
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
+from homeassistant.const import (
+    EVENT_HOMEASSISTANT_STARTED,
+    STATE_HOME,
+    STATE_NOT_HOME,
+    STATE_ON,
+    STATE_OFF,
+)
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.storage import Store
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.event import (
+    async_track_time_interval,
+    async_track_state_change_event,
+)
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.helpers import device_registry as dr
 import voluptuous as vol
 
 from .const import (
     DOMAIN,
+    PLATFORMS,
+    VERSION,
     CONF_REMINDER_NAME,
     CONF_RFID_TAG,
     CONF_INTERVAL_HOURS,
@@ -23,61 +35,46 @@ from .const import (
     CONF_ENABLED,
     CONF_ACTIVE,
     CONF_LAST_TRIGGERED,
-    CONF_SNOOZE_UNTIL,
+    CONF_CONDITIONS,
+    CONF_CONDITION_TYPE,
+    CONF_TIME_WINDOW,
+    CONF_TIME_START,
+    CONF_TIME_END,
+    CONF_ENTITY_CONDITIONS,
+    CONF_CONDITION_ENTITY,
+    CONF_CONDITION_STATE,
+    CONF_CONDITION_OPERATOR,
+    CONF_CONDITION_VALUE,
+    CONF_WEEKDAYS,
+    CONF_DAYS_OF_MONTH,
+    CONF_MONTHS,
     DEFAULT_VOLUME,
     DEFAULT_ENABLED,
     DEFAULT_ACTIVE,
+    DEFAULT_CONDITION_TYPE,
     STORAGE_KEY,
     STORAGE_VERSION,
+    OPERATOR_EQ,
+    OPERATOR_GT,
+    OPERATOR_LT,
+    OPERATOR_GTE,
+    OPERATOR_LTE,
+    OPERATOR_NE,
+    OPERATOR_IN,
+    OPERATOR_NOT_IN,
+    OPERATOR_HOME,
+    OPERATOR_NOT_HOME,
+    CONDITION_TYPE_ALL,
+    CONDITION_TYPE_ANY,
+    CONDITION_TYPE_NONE,
     EVENT_REMINDER_TRIGGERED,
     EVENT_REMINDER_CLEARED,
-    EVENT_REMINDER_SNOOZED,
     EVENT_RFID_SCANNED,
-    SERVICE_ADD_REMINDER,
-    SERVICE_REMOVE_REMINDER,
-    SERVICE_UPDATE_REMINDER,
-    SERVICE_CLEAR_REMINDER,
-    SERVICE_SNOOZE_REMINDER,
+    EVENT_CONDITION_MET,
+    EVENT_CONDITION_NOT_MET,
 )
 
 _LOGGER = logging.getLogger(__name__)
-
-PLATFORMS = ["sensor"]
-
-# Service schemas
-ADD_REMINDER_SCHEMA = vol.Schema({
-    vol.Required(CONF_REMINDER_NAME): cv.string,
-    vol.Required(CONF_RFID_TAG): cv.string,
-    vol.Required(CONF_INTERVAL_HOURS): vol.All(vol.Coerce(float), vol.Range(min=0.5, max=24)),
-    vol.Optional(CONF_VOLUME, default=DEFAULT_VOLUME): vol.All(vol.Coerce(float), vol.Range(min=0.1, max=1.0)),
-    vol.Optional(CONF_MEDIA_PLAYERS, default=[]): vol.All(cv.ensure_list, [cv.entity_id]),
-    vol.Optional(CONF_NOTIFICATION_TARGETS, default=[]): vol.All(cv.ensure_list, [cv.string]),
-    vol.Required(CONF_CUSTOM_MESSAGE): cv.string,
-})
-
-REMOVE_REMINDER_SCHEMA = vol.Schema({
-    vol.Required(CONF_REMINDER_NAME): cv.string,
-})
-
-UPDATE_REMINDER_SCHEMA = vol.Schema({
-    vol.Required(CONF_REMINDER_NAME): cv.string,
-    vol.Optional(CONF_RFID_TAG): cv.string,
-    vol.Optional(CONF_INTERVAL_HOURS): vol.All(vol.Coerce(float), vol.Range(min=0.5, max=24)),
-    vol.Optional(CONF_VOLUME): vol.All(vol.Coerce(float), vol.Range(min=0.1, max=1.0)),
-    vol.Optional(CONF_MEDIA_PLAYERS): vol.All(cv.ensure_list, [cv.entity_id]),
-    vol.Optional(CONF_NOTIFICATION_TARGETS): vol.All(cv.ensure_list, [cv.string]),
-    vol.Optional(CONF_CUSTOM_MESSAGE): cv.string,
-    vol.Optional(CONF_ENABLED): cv.boolean,
-})
-
-CLEAR_REMINDER_SCHEMA = vol.Schema({
-    vol.Required(CONF_RFID_TAG): cv.string,
-})
-
-SNOOZE_REMINDER_SCHEMA = vol.Schema({
-    vol.Required(CONF_REMINDER_NAME): cv.string,
-    vol.Optional("minutes", default=10): vol.All(vol.Coerce(int), vol.Range(min=1, max=60)),
-})
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the RFID Medication Reminder component."""
@@ -91,15 +88,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "store": store,
         "reminders": [],
         "unsub_timer": None,
+        "condition_listeners": {},
     }
+
+    # Create device registry entry
+    device_registry = dr.async_get(hass)
+    device_registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, entry.entry_id)},
+        name="RFID Medication Reminder",
+        manufacturer="Community",
+        model="Conditional RFID Reminder",
+        sw_version=VERSION,
+    )
 
     # Load stored reminders
     stored = await store.async_load()
     if stored:
         hass.data[DOMAIN][entry.entry_id]["reminders"] = stored.get("reminders", [])
-
-    # Register services
-    await _register_services(hass, entry)
 
     # Start monitoring
     async def start_monitoring(_):
@@ -110,6 +116,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             timedelta(seconds=60)
         )
         hass.data[DOMAIN][entry.entry_id]["unsub_timer"] = unsub
+        await _setup_condition_listeners(hass, entry)
 
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, start_monitoring)
 
@@ -123,7 +130,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.bus.async_listen("tag_scanned", handle_tag_scanned)
 
-    # Forward setup to sensor platform
+    # Forward setup to platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True
@@ -133,138 +140,58 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unsub := hass.data[DOMAIN][entry.entry_id].get("unsub_timer"):
         unsub()
 
+    # Remove condition listeners
+    for unsub in hass.data[DOMAIN][entry.entry_id]["condition_listeners"].values():
+        unsub()
+
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
 
     return unload_ok
 
-async def _register_services(hass: HomeAssistant, entry: ConfigEntry):
-    """Register services for this integration."""
-    
-    async def add_reminder(call: ServiceCall) -> None:
-        """Add a new reminder."""
-        data = call.data
-        reminders = hass.data[DOMAIN][entry.entry_id]["reminders"]
+async def _setup_condition_listeners(hass: HomeAssistant, entry: ConfigEntry):
+    """Set up state change listeners for condition entities."""
+    reminders = hass.data[DOMAIN][entry.entry_id]["reminders"]
+    entities_to_watch = set()
 
-        # Check if reminder already exists
-        if any(r[CONF_REMINDER_NAME] == data[CONF_REMINDER_NAME] for r in reminders):
-            _LOGGER.warning("Reminder '%s' already exists", data[CONF_REMINDER_NAME])
-            return
+    for reminder in reminders:
+        conditions = reminder.get(CONF_CONDITIONS, [])
+        for condition in conditions:
+            entity_conditions = condition.get(CONF_ENTITY_CONDITIONS, [])
+            for ec in entity_conditions:
+                if entity := ec.get(CONF_CONDITION_ENTITY):
+                    entities_to_watch.add(entity)
 
-        new_reminder = {
-            CONF_REMINDER_NAME: data[CONF_REMINDER_NAME],
-            CONF_RFID_TAG: data[CONF_RFID_TAG],
-            CONF_INTERVAL_HOURS: data[CONF_INTERVAL_HOURS],
-            CONF_VOLUME: data.get(CONF_VOLUME, DEFAULT_VOLUME),
-            CONF_MEDIA_PLAYERS: data.get(CONF_MEDIA_PLAYERS, []),
-            CONF_NOTIFICATION_TARGETS: data.get(CONF_NOTIFICATION_TARGETS, []),
-            CONF_CUSTOM_MESSAGE: data[CONF_CUSTOM_MESSAGE],
-            CONF_ENABLED: DEFAULT_ENABLED,
-            CONF_ACTIVE: DEFAULT_ACTIVE,
-            CONF_LAST_TRIGGERED: None,
-            CONF_SNOOZE_UNTIL: None,
-        }
+    if not entities_to_watch:
+        return
 
-        reminders.append(new_reminder)
-        await _save_reminders(hass, entry)
-        _LOGGER.info("Added reminder '%s'", data[CONF_REMINDER_NAME])
+    @callback
+    async def condition_state_changed(event):
+        """Handle state change of condition entities."""
+        entity_id = event.data.get("entity_id")
+        if entity_id in entities_to_watch:
+            await _check_reminders(hass, entry)
 
-    async def remove_reminder(call: ServiceCall) -> None:
-        """Remove a reminder."""
-        name = call.data[CONF_REMINDER_NAME]
-        reminders = hass.data[DOMAIN][entry.entry_id]["reminders"]
-
-        new_reminders = [r for r in reminders if r[CONF_REMINDER_NAME] != name]
-
-        if len(new_reminders) < len(reminders):
-            hass.data[DOMAIN][entry.entry_id]["reminders"] = new_reminders
-            await _save_reminders(hass, entry)
-            _LOGGER.info("Removed reminder '%s'", name)
-
-    async def update_reminder(call: ServiceCall) -> None:
-        """Update an existing reminder."""
-        data = call.data
-        name = data[CONF_REMINDER_NAME]
-        reminders = hass.data[DOMAIN][entry.entry_id]["reminders"]
-
-        for i, r in enumerate(reminders):
-            if r[CONF_REMINDER_NAME] == name:
-                updated = r.copy()
-                if CONF_RFID_TAG in data:
-                    updated[CONF_RFID_TAG] = data[CONF_RFID_TAG]
-                if CONF_INTERVAL_HOURS in data:
-                    updated[CONF_INTERVAL_HOURS] = data[CONF_INTERVAL_HOURS]
-                if CONF_VOLUME in data:
-                    updated[CONF_VOLUME] = data[CONF_VOLUME]
-                if CONF_MEDIA_PLAYERS in data:
-                    updated[CONF_MEDIA_PLAYERS] = data[CONF_MEDIA_PLAYERS]
-                if CONF_NOTIFICATION_TARGETS in data:
-                    updated[CONF_NOTIFICATION_TARGETS] = data[CONF_NOTIFICATION_TARGETS]
-                if CONF_CUSTOM_MESSAGE in data:
-                    updated[CONF_CUSTOM_MESSAGE] = data[CONF_CUSTOM_MESSAGE]
-                if CONF_ENABLED in data:
-                    updated[CONF_ENABLED] = data[CONF_ENABLED]
-
-                reminders[i] = updated
-                await _save_reminders(hass, entry)
-                _LOGGER.info("Updated reminder '%s'", name)
-                break
-
-    async def clear_reminder(call: ServiceCall) -> None:
-        """Clear reminder by RFID tag."""
-        tag_id = call.data[CONF_RFID_TAG]
-        await _process_rfid_scan(hass, entry, tag_id)
-
-    async def snooze_reminder(call: ServiceCall) -> None:
-        """Snooze a reminder."""
-        name = call.data[CONF_REMINDER_NAME]
-        minutes = call.data.get("minutes", 10)
-        reminders = hass.data[DOMAIN][entry.entry_id]["reminders"]
-
-        snooze_until = (datetime.now() + timedelta(minutes=minutes)).timestamp()
-
-        for i, r in enumerate(reminders):
-            if r[CONF_REMINDER_NAME] == name and r[CONF_ACTIVE]:
-                r[CONF_ACTIVE] = False
-                r[CONF_SNOOZE_UNTIL] = snooze_until
-                await _save_reminders(hass, entry)
-                hass.bus.async_fire(EVENT_REMINDER_SNOOZED, {
-                    CONF_REMINDER_NAME: name,
-                    "snooze_minutes": minutes
-                })
-                _LOGGER.info("Snoozed reminder '%s' for %d minutes", name, minutes)
-                break
-
-    hass.services.async_register(
-        DOMAIN, SERVICE_ADD_REMINDER, add_reminder, schema=ADD_REMINDER_SCHEMA
+    unsub = async_track_state_change_event(
+        hass, list(entities_to_watch), condition_state_changed
     )
-    hass.services.async_register(
-        DOMAIN, SERVICE_REMOVE_REMINDER, remove_reminder, schema=REMOVE_REMINDER_SCHEMA
-    )
-    hass.services.async_register(
-        DOMAIN, SERVICE_UPDATE_REMINDER, update_reminder, schema=UPDATE_REMINDER_SCHEMA
-    )
-    hass.services.async_register(
-        DOMAIN, SERVICE_CLEAR_REMINDER, clear_reminder, schema=CLEAR_REMINDER_SCHEMA
-    )
-    hass.services.async_register(
-        DOMAIN, SERVICE_SNOOZE_REMINDER, snooze_reminder, schema=SNOOZE_REMINDER_SCHEMA
-    )
+    hass.data[DOMAIN][entry.entry_id]["condition_listeners"]["state"] = unsub
 
 async def _check_reminders(hass: HomeAssistant, entry: ConfigEntry):
     """Check all reminders and trigger if needed."""
     reminders = hass.data[DOMAIN][entry.entry_id]["reminders"]
-    now_ts = datetime.now().timestamp()
+    now = datetime.now()
+    now_ts = now.timestamp()
     triggered = []
 
     for r in reminders:
-        if not r[CONF_ENABLED] or r[CONF_ACTIVE]:
+        if not r.get(CONF_ENABLED, True) or r.get(CONF_ACTIVE, False):
             continue
 
-        # Check snooze
-        snooze_until = r.get(CONF_SNOOZE_UNTIL)
-        if snooze_until and snooze_until > now_ts:
+        # Check if conditions are met
+        conditions_met = await _check_conditions(hass, r, now)
+        if not conditions_met:
             continue
 
         # Check interval
@@ -281,10 +208,141 @@ async def _check_reminders(hass: HomeAssistant, entry: ConfigEntry):
                 CONF_MEDIA_PLAYERS: r[CONF_MEDIA_PLAYERS],
                 CONF_NOTIFICATION_TARGETS: r[CONF_NOTIFICATION_TARGETS],
             })
+            hass.bus.async_fire(EVENT_CONDITION_MET, {
+                CONF_REMINDER_NAME: r[CONF_REMINDER_NAME],
+            })
 
     if triggered:
         await _save_reminders(hass, entry)
         _LOGGER.debug("Triggered reminders: %s", ", ".join(triggered))
+
+async def _check_conditions(
+    hass: HomeAssistant, reminder: dict, now: datetime
+) -> bool:
+    """Check if all conditions for a reminder are met."""
+    conditions = reminder.get(CONF_CONDITIONS, [])
+    if not conditions:
+        return True
+
+    condition_type = reminder.get(CONF_CONDITION_TYPE, CONDITION_TYPE_ALL)
+    results = []
+
+    for condition in conditions:
+        condition_met = await _check_single_condition(hass, condition, now)
+        results.append(condition_met)
+
+    if condition_type == CONDITION_TYPE_ALL:
+        return all(results)
+    elif condition_type == CONDITION_TYPE_ANY:
+        return any(results)
+    elif condition_type == CONDITION_TYPE_NONE:
+        return not any(results)
+
+    return True
+
+async def _check_single_condition(
+    hass: HomeAssistant, condition: dict, now: datetime
+) -> bool:
+    """Check a single condition."""
+    # Time window condition
+    if time_window := condition.get(CONF_TIME_WINDOW):
+        start_str = condition.get(CONF_TIME_START, "00:00")
+        end_str = condition.get(CONF_TIME_END, "23:59")
+
+        try:
+            start_time = datetime.strptime(start_str, "%H:%M").time()
+            end_time = datetime.strptime(end_str, "%H:%M").time()
+            current_time = now.time()
+
+            if start_time <= end_time:
+                in_window = start_time <= current_time <= end_time
+            else:
+                # Overnight window (e.g., 22:00 to 06:00)
+                in_window = current_time >= start_time or current_time <= end_time
+
+            if not in_window:
+                return False
+        except ValueError:
+            _LOGGER.error("Invalid time format: %s - %s", start_str, end_str)
+            return False
+
+    # Weekday condition
+    if weekdays := condition.get(CONF_WEEKDAYS):
+        current_weekday = now.strftime("%A").lower()
+        if current_weekday not in weekdays:
+            return False
+
+    # Day of month condition
+    if days := condition.get(CONF_DAYS_OF_MONTH):
+        current_day = now.day
+        if current_day not in days:
+            return False
+
+    # Month condition
+    if months := condition.get(CONF_MONTHS):
+        current_month = now.month
+        if current_month not in months:
+            return False
+
+    # Entity state conditions
+    entity_conditions = condition.get(CONF_ENTITY_CONDITIONS, [])
+    for ec in entity_conditions:
+        entity_id = ec.get(CONF_CONDITION_ENTITY)
+        operator = ec.get(CONF_CONDITION_OPERATOR, OPERATOR_EQ)
+        expected = ec.get(CONF_CONDITION_STATE) or ec.get(CONF_CONDITION_VALUE)
+
+        if not entity_id:
+            continue
+
+        state = hass.states.get(entity_id)
+        if not state:
+            return False
+
+        current_state = state.state
+
+        # Handle special operators
+        if operator == OPERATOR_HOME:
+            if current_state not in [STATE_HOME, STATE_ON]:
+                return False
+            continue
+        elif operator == OPERATOR_NOT_HOME:
+            if current_state in [STATE_HOME, STATE_ON]:
+                return False
+            continue
+
+        # Compare based on operator
+        if operator == OPERATOR_EQ:
+            if current_state != str(expected):
+                return False
+        elif operator == OPERATOR_NE:
+            if current_state == str(expected):
+                return False
+        elif operator in [OPERATOR_GT, OPERATOR_LT, OPERATOR_GTE, OPERATOR_LTE]:
+            try:
+                current_val = float(current_state)
+                expected_val = float(expected)
+                if operator == OPERATOR_GT and not (current_val > expected_val):
+                    return False
+                elif operator == OPERATOR_LT and not (current_val < expected_val):
+                    return False
+                elif operator == OPERATOR_GTE and not (current_val >= expected_val):
+                    return False
+                elif operator == OPERATOR_LTE and not (current_val <= expected_val):
+                    return False
+            except ValueError:
+                return False
+        elif operator == OPERATOR_IN:
+            if not isinstance(expected, list):
+                expected = [expected]
+            if current_state not in [str(e) for e in expected]:
+                return False
+        elif operator == OPERATOR_NOT_IN:
+            if not isinstance(expected, list):
+                expected = [expected]
+            if current_state in [str(e) for e in expected]:
+                return False
+
+    return True
 
 async def _process_rfid_scan(hass: HomeAssistant, entry: ConfigEntry, tag_id: str):
     """Process an RFID tag scan."""
@@ -292,9 +350,8 @@ async def _process_rfid_scan(hass: HomeAssistant, entry: ConfigEntry, tag_id: st
     cleared = []
 
     for r in reminders:
-        if r[CONF_RFID_TAG] == tag_id and r[CONF_ACTIVE]:
+        if r.get(CONF_RFID_TAG) == tag_id and r.get(CONF_ACTIVE, False):
             r[CONF_ACTIVE] = False
-            r[CONF_SNOOZE_UNTIL] = None
             cleared.append(r[CONF_REMINDER_NAME])
 
     if cleared:
