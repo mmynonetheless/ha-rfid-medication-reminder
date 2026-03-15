@@ -1,76 +1,87 @@
-## RFID Medication Reminder for Home Assistant
+# RFID Medication Reminder for Home Assistant
 
-A powerful, customizable medication reminder system that supports **multiple reminders** with different RFID tags, each with its own interval, message, media players, and phone notifications. Alerts loop until the correct RFID tag is scanned.
+A powerful, customizable medication reminder system with **full UI configuration** and **conditional reminders**. No manual YAML or service calls required!
 
 ## Features
 
-- ✅ Multiple independent reminders
-- ✅ Per-reminder RFID tags
-- ✅ Customizable intervals (0.5–24 hours)
-- ✅ Media player alerts (looping sound)
-- ✅ Phone notifications (Find My style – critical alerts, vibration, LED, action buttons)
-- ✅ Snooze (10 minutes) from notification
-- ✅ JSON-based configuration storage
-- ✅ Easy management via service calls
+- ✅ **Full UI Configuration** - Add reminders through dropdown menus and forms
+- ✅ **Multiple Independent Reminders** - Each with its own RFID tag, interval, and message
+- ✅ **Conditional Reminders** - Only trigger when specific conditions are met
+- ✅ **Time Windows** - Set reminders to only trigger between certain hours
+- ✅ **Day-based Conditions** - Weekdays, days of month, or specific months
+- ✅ **Entity State Conditions** - Trigger based on other Home Assistant entities
+- ✅ **Media Player Alerts** - Looping sound on any media player
+- ✅ **Phone Notifications** - Critical alerts with Find My style notifications
+- ✅ **RFID Clearing** - Scan RFID tag to stop active reminders
+- ✅ **Per-Reminder Controls** - Volume, interval, and message for each reminder
 
 ## Installation
 
 ### HACS Installation (Recommended)
 
-1. Open HACS in your Home Assistant sidebar
-2. Click on Integrations
-3. Click the three dots in the top right corner (⋮)
-4. Select "Custom repositories"
-5. Add this repository URL with category "Integration":
-  https://github.com/mmynonetheless/ha-rfid-medication-reminder/
-
-6. Click "ADD"
-7. Search for "RFID Medication Reminder" in HACS
-8. Click "Download"
-9. Restart Home Assistant
+1. Open HACS → Integrations → Custom repositories
+2. Add: `https://github.com/mmynonetheless/ha-rfid-medication-reminder`
+3. Category: Integration
+4. Click Download
+5. Restart Home Assistant
 
 ### Manual Installation
 
 1. Download the `rfid_medication_reminder` folder
-2. Copy it to your `custom_components` directory
+2. Copy to `custom_components/` directory
 3. Restart Home Assistant
 
 ## Configuration
 
 After installation, go to **Settings → Devices & Services → Add Integration** and search for "RFID Medication Reminder".
 
-## Prerequisites
+## Adding a Reminder
 
-Before using this system, you need:
+1. Go to your dashboard
+2. Click the "Add New Reminder" button
+3. Fill in the form:
+   - **Reminder Name**: Unique name (e.g., "Morning Medication")
+   - **RFID Tag**: The tag ID that will clear this reminder
+   - **Interval Hours**: Hours between triggers (0.5-24)
+   - **Volume**: Alert volume (0.1-1.0)
+   - **Media Players**: Select which speakers to use
+   - **Notification Targets**: Select phones to notify
+   - **Custom Message**: The reminder message
 
-| Requirement | Description |
-|------------|-------------|
-| RFID Reader | Connected to Home Assistant (MQTT or direct integration) |
-| Audio File | Place `alert.mp3` in `/config/www/media/` |
-| Mobile App | Home Assistant Companion app installed on phones |
-| Notification Targets | Device IDs from Settings → Devices & Services → Mobile App |
+## Adding Conditions
 
----
+1. Find your reminder in the list
+2. Select "Add Condition" from the action dropdown
+3. Configure conditions:
+   - **Time Window**: Set start and end times
+   - **Weekdays**: Select which days of the week
+   - **Entity Conditions**: Add conditions based on other entities
 
-## Usage
+## Available Condition Operators
 
-## Adding Your First Reminder
+| Operator | Description |
+|----------|-------------|
+| `eq` | Equal to |
+| `ne` | Not equal to |
+| `gt` | Greater than |
+| `lt` | Less than |
+| `gte` | Greater than or equal |
+| `lte` | Less than or equal |
+| `in` | Value in list |
+| `not_in` | Value not in list |
+| `home` | Entity is home/on |
+| `not_home` | Entity is not home/off |
 
-Go to **Developer Tools → Services** and call:
+## Events
 
-```yaml
-service: script.add_rfid_reminder
-data:
-  reminder_name: "Medication"
-  rfid_tag: "1234567890"
-  interval_hours: 8
-  volume: 0.8
-  media_players: '["media_player.living_room"]'
-  notification_targets: '["device_tracker.my_phone"]'
-  custom_message: "Time for your medication!"
-```
+| Event | Description | Data |
+|-------|-------------|------|
+| `rfid_medication_reminder_triggered` | Reminder triggered | reminder_name, rfid_tag, message |
+| `rfid_medication_reminder_cleared` | Reminder cleared | rfid_tag, cleared_reminders |
+| `rfid_medication_reminder_rfid_scanned` | RFID tag scanned | rfid_tag, cleared_reminders |
+| `rfid_medication_reminder_condition_met` | Conditions met | reminder_name |
+| `rfid_medication_reminder_condition_not_met` | Conditions not met | reminder_name |
 
----
 
 
 ## Example Configurations
@@ -110,107 +121,18 @@ notification_targets: '["device_tracker.my_phone"]'
 custom_message: "Time to water the plants 🌱"
 ```
 
----
-## Service Details
-
-| Field | Required | Default | Description |
-|-------|----------|---------|-------------|
-| reminder_name | Yes | - | Unique name for the reminder |
-| rfid_tag | Yes | - | The RFID tag ID that clears this reminder |
-| interval_hours | Yes | - | Hours between triggers (0.5 to 24) |
-| volume | No | 0.7 | Alert volume (0.1 to 1.0) |
-| media_players | No | [] | JSON array of media_player entity IDs |
-| notification_targets | No | [] | JSON array of mobile_app device IDs |
-| custom_message | Yes | - | Message shown in notifications |
-
----
-
-## How It Works
-
-1. **Monitor runs every minute** checking all reminders
-2. **When interval elapsed** → reminder activates
-3. **Alerts loop until cleared**:
-   - Media players play sound every 10 seconds
-   - Phones receive critical notifications every 30 seconds
-4. **Scan RFID tag** → stops all alerts for that tag
-5. **Snooze from notification** → pauses for 10 minutes
-
----
-
-## Notification Features 
-
-| Feature | Implementation |
-|---------|----------------|
-| Critical Alerts | Bypasses silent mode |
-| Persistent Sound | Loops until cleared |
-| LED Indicator | Red LED on supported devices |
-| Vibration Pattern | 1s on, 1s off, 1s on |
-| Action Buttons | Snooze (10min) and Clear |
-| Dedicated Channel | Uses "alarm_stream" channel |
-| High Priority | Bypasses Do Not Disturb |
-
----
-
-## Viewing Active Reminders
-
-Check current configurations in **Developer Tools → States**:
- ```
-Search for: input_text.reminder_configs
- ```
-
-The value shows a JSON array of all reminders with their current status:
-- `active: true` = currently alerting
-- `enabled: true` = active in the system
-- `snooze_until` = timestamp if snoozed
-
----
-
-## Events
-
-The integration fires these events:
-
-| Event | Description | Data |
-|-------|-------------|------|
-| `rfid_medication_reminder_triggered` | Reminder triggered | `reminder_name`, `rfid_tag`, `custom_message` |
-| `rfid_medication_reminder_cleared` | Reminder cleared | `rfid_tag`, `cleared_reminders` |
-| `rfid_medication_reminder_snoozed` | Reminder snoozed | `reminder_name`, `snooze_minutes` |
-| `rfid_medication_reminder_rfid_scanned` | RFID tag scanned | `rfid_tag`, `cleared_reminders` |
-
----
-
 ## Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
 | No sound on media players | Verify `alert.mp3` exists in `/config/www/media/` |
-| Phone notifications not working | Use correct device IDs from **Settings → Devices & Services → Mobile App** |
+| Phone notifications not working | Use correct device IDs from Settings → Devices & Services → Mobile App |
 | RFID tag not clearing | Check that the tag ID matches exactly |
-| Reminder not triggering | Verify that the reminder is enabled |
-
-
-
----
-
-
-## Credits
-
-- Inspired by the Google Find My integration style
-- Based on original RFID reminder system
-- Phone notification pattern from mobile_app integration
-
----
+| Reminder not triggering | Check conditions and verify reminder is enabled |
+| Conditions not working | Check that condition entities exist and have valid states |
 
 ## License
 
-MIT License - feel free to modify and share
-
----
-
-## Support
-
-- GitHub Issues: [Open an issue](https://github.com/YOUR_USERNAME/ha-multi-rfid-reminder/issues)
-- Home Assistant Community: Search for "RFID reminder"
-
----
+MIT License
 
 *Remember: After installation, restart Home Assistant and test with a single reminder before adding more!*
