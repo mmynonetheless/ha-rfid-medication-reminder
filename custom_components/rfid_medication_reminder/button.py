@@ -5,7 +5,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.entity import DeviceInfo
 
-from .const import DOMAIN, ICON_REMINDER, CONF_REMINDER_NAME
+from .const import DOMAIN, ICON_REMINDER
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -18,9 +18,6 @@ async def async_setup_entry(
 
     # Add New Reminder button
     buttons.append(AddReminderButton(coordinator, entry))
-
-    # Add Clear All button
-    buttons.append(ClearAllRemindersButton(coordinator, entry))
 
     async_add_entities(buttons, True)
 
@@ -43,27 +40,3 @@ class AddReminderButton(ButtonEntity):
     async def async_press(self) -> None:
         """Handle the button press."""
         self.hass.bus.async_fire(f"{DOMAIN}_show_add_form", {})
-
-class ClearAllRemindersButton(ButtonEntity):
-    """Button to clear all active reminders."""
-
-    def __init__(self, coordinator, entry):
-        """Initialize the button."""
-        self._coordinator = coordinator
-        self._entry = entry
-        self._attr_unique_id = f"{DOMAIN}_{entry.entry_id}_clear_all"
-        self._attr_name = "Clear All Active Reminders"
-        self._attr_icon = "mdi:bell-off"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, entry.entry_id)},
-            name="RFID Medication Reminder",
-            manufacturer="Community",
-        )
-
-    async def async_press(self) -> None:
-        """Handle the button press."""
-        reminders = self._coordinator["reminders"]
-        for r in reminders:
-            r["active"] = False
-        await self._coordinator["store"].async_save({"reminders": reminders})
-        self.hass.bus.async_fire(f"{DOMAIN}_reminders_updated", {})
