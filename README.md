@@ -135,4 +135,6 @@ custom_message: "Time to water the plants 🌱"
 
 MIT License
 
+---
+
 *Remember: After installation, restart Home Assistant and test with a single reminder before adding more!*
