@@ -1,7 +1,7 @@
 """Sensor platform for RFID Medication Reminder."""
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -26,6 +26,7 @@ async def async_setup_entry(
     sensors = [
         RFIDReminderStatusSensor(coordinator, entry),
         RFIDReminderListSensor(coordinator, entry),
+        RFIDTagListSensor(coordinator, entry),
     ]
 
     # Create a sensor for each reminder
@@ -106,6 +107,37 @@ class RFIDReminderListSensor(CoordinatorEntity, SensorEntity):
             
         return {
             ATTR_REMINDERS: reminder_list,
+        }
+
+class RFIDTagListSensor(CoordinatorEntity, SensorEntity):
+    """Sensor that lists all known RFID tags."""
+
+    def __init__(self, coordinator, entry):
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+        self._entry = entry
+        self._attr_unique_id = f"{DOMAIN}_{entry.entry_id}_tag_list"
+        self._attr_name = "RFID Tag List"
+        self._attr_icon = "mdi:rfid"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name="RFID Medication Reminder",
+            manufacturer="Community",
+        )
+
+    @property
+    def native_value(self):
+        """Return number of known tags."""
+        return len(self._coordinator.get("known_tags", set()))
+
+    @property
+    def extra_state_attributes(self):
+        """Return list of known tags."""
+        tags = list(self._coordinator.get("known_tags", set()))
+        return {
+            "tags": tags,
+            "tag_count": len(tags),
         }
 
 class IndividualReminderSensor(CoordinatorEntity, SensorEntity):
