@@ -14,18 +14,13 @@ async def async_setup_entry(
 ) -> None:
     """Set up button entities."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    buttons = []
-
-    # Add New Reminder button
-    buttons.append(AddReminderButton(coordinator, entry))
-
+    buttons = [AddReminderButton(coordinator, entry)]
     async_add_entities(buttons, True)
 
 class AddReminderButton(ButtonEntity):
     """Button to add a new reminder."""
 
     def __init__(self, coordinator, entry):
-        """Initialize the button."""
         self._coordinator = coordinator
         self._entry = entry
         self._attr_unique_id = f"{DOMAIN}_{entry.entry_id}_add_reminder"
@@ -38,5 +33,4 @@ class AddReminderButton(ButtonEntity):
         )
 
     async def async_press(self) -> None:
-        """Handle the button press."""
         self.hass.bus.async_fire(f"{DOMAIN}_show_add_form", {})
