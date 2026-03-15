@@ -21,6 +21,7 @@ class RFIDMedicationReminderConfigFlow(config_entries.ConfigFlow, domain=DOMAIN)
                 data=user_input,
             )
 
+        # Show a simple form with no required fields
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema({}),
