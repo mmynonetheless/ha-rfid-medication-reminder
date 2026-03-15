@@ -1,13 +1,13 @@
 {
-  "domain": "rfid_medication_reminder",
-  "name": "RFID Medication Reminder",
+  "domain": "rfid_reminder",
+  "name": "RFID Reminder",
   "codeowners": ["@mmynonetheless"],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/mmynonetheless/ha-rfid-medication-reminder",
+  "documentation": "https://github.com/mmynonetheless/ha-rfid-reminder",
   "integration_type": "helper",
   "iot_class": "local_push",
-  "issue_tracker": "https://github.com/mmynonetheless/ha-rfid-medication-reminder/issues",
+  "issue_tracker": "https://github.com/mmynonetheless/ha-rfid-reminder/issues",
   "requirements": [],
   "version": "2.0.0"
 }
